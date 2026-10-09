@@ -30,6 +30,7 @@ export async function checkConnection(): Promise<{
     try {
       response = await fetch(`${supabaseUrl}/auth/v1/health`, {
         signal: controller.signal,
+        headers: { apikey: supabaseAnonKey },
       });
     } finally {
       clearTimeout(timeout);
