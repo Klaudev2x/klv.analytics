@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { supabase } from "../lib/analytics";
+import { navigate } from "../lib/router";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -62,7 +63,7 @@ export default function AdminLogin() {
           setError(signInError.message);
         } else {
           await ensureSubscription();
-          window.location.href = "/admin/dashboard";
+          navigate("/admin/dashboard");
         }
       }
     } catch (err) {

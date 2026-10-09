@@ -1,5 +1,3 @@
-import React from "react";
-
 interface Event {
   id?: string;
   event_type?: string;
@@ -23,7 +21,7 @@ export default function ActivityFeed({
   events,
   maxItems = 10,
 }: Props) {
-  const getEventIcon = (type: string) => {
+  const getEventIcon = (type: string | undefined) => {
     switch (type) {
       case "page_view":
         return "📄";
@@ -47,7 +45,7 @@ export default function ActivityFeed({
 
     if (error) return error.substring(0, 60);
     if (url) return url;
-    return type;
+    return type || "event";
   };
 
   const getEventTime = (event: Event) => {
@@ -55,8 +53,9 @@ export default function ActivityFeed({
     if (!timestamp) return "now";
 
     const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    if (Number.isNaN(date.getTime())) return "unknown time";
+    const diff = Date.now() - date.getTime();
+    if (diff < 0) return "just now";
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
@@ -68,11 +67,14 @@ export default function ActivityFeed({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 sm:p-6">
       <h3 className="text-lg font-semibold text-white mb-6">{title}</h3>
 
       {events.length === 0 ? (
-        <p className="text-slate-500 text-sm">No events yet</p>
+        <div className="py-8 flex flex-col items-center justify-center text-center gap-2">
+          <span className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-lg" aria-hidden="true">◌</span>
+          <p className="text-slate-500 text-sm">No events yet — they’ll appear here in real time</p>
+        </div>
       ) : (
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {events.slice(0, maxItems).map((event, idx) => (

@@ -1,5 +1,3 @@
-import React from "react";
-
 interface Page {
   url: string;
   title: string;
@@ -12,11 +10,14 @@ interface Props {
 
 export default function TopPagesTable({ pages }: Props) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 sm:p-6">
       <h3 className="text-lg font-semibold text-white mb-6">Top Pages</h3>
 
       {pages.length === 0 ? (
-        <p className="text-slate-500 text-sm">No page views yet</p>
+        <div className="py-8 flex flex-col items-center justify-center text-center gap-2">
+          <span className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-lg" aria-hidden="true">◌</span>
+          <p className="text-slate-500 text-sm">No page views yet</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {pages.map((page, idx) => (

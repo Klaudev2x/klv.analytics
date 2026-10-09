@@ -3,9 +3,12 @@
 @import "tailwindcss/utilities";
 
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(6, 182, 212, 0.35);
+  color: #fff;
 }
 
 body {
@@ -38,4 +41,31 @@ code {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(71, 85, 105, 0.9);
+}
+
+/* Accessible keyboard focus */
+:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.8);
+  outline-offset: 2px;
+}
+
+/* Skeleton loading shimmer */
+@keyframes klv-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0.6) 25%,
+    rgba(51, 65, 85, 0.6) 37%,
+    rgba(30, 41, 59, 0.6) 63%
+  );
+  background-size: 800px 100%;
+  animation: klv-shimmer 1.4s ease infinite;
 }

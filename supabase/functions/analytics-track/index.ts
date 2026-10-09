@@ -123,6 +123,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Server-truth location: never trust client-supplied IP/country.
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    const realIp = req.headers.get("cf-connecting-ip")
+      || (forwardedFor ? forwardedFor.split(",")[0].trim() : "")
+      || req.headers.get("x-real-ip")
+      || "";
+    const country = req.headers.get("cf-ipcountry") || "";
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Upsert session
@@ -132,9 +140,9 @@ Deno.serve(async (req: Request) => {
         {
           site_id: payload.siteId,
           session_id: sanitize(payload.sessionId),
-          user_agent: sanitize(payload.userAgent),
-          ip_address: sanitize(payload.ipAddress),
-          country: sanitize(payload.country),
+          user_agent: sanitize(payload.userAgent) || sanitize(req.headers.get("user-agent")),
+          ip_address: sanitize(realIp),
+          country: sanitize(country),
           device_type: sanitize(payload.device),
           browser: sanitize(payload.browser),
           os: sanitize(payload.os),

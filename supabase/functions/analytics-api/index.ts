@@ -94,7 +94,10 @@ async function handleRequest(req: Request, supabase: ReturnType<typeof createCli
       });
     }
 
-    const siteKey = crypto.getRandomValues(new Uint8Array(16)).toString();
+    const siteKeyBytes = crypto.getRandomValues(new Uint8Array(16));
+    const siteKey = Array.from(siteKeyBytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
 
     const { data, error } = await supabase
       .from("analytics_sites")
@@ -241,7 +244,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    // NOTE: never fall back to the service-role key here — this client is
+    // exposed to browsers and must stay behind RLS.
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const authHeader = req.headers.get("Authorization");
 
     if (!supabaseUrl || !supabaseAnonKey) {

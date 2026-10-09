@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase, checkConnection } from "./lib/analytics";
+import { navigate } from "./lib/router";
 import type { User } from "@supabase/supabase-js";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -46,6 +47,21 @@ export default function App() {
     };
   }, []);
 
+  // SPA redirects as an effect — never navigate during render.
+  useEffect(() => {
+    if (loading || connectionError) return;
+    if (currentPath === "/admin/dashboard" || currentPath.startsWith("/admin/dashboard")) {
+      if (!user) navigate("/admin/login");
+    } else if (currentPath === "/admin/setup" || currentPath.startsWith("/admin/setup")) {
+      if (!user) navigate("/admin/login");
+    } else if (
+      currentPath !== "/pricing" &&
+      !currentPath.startsWith("/admin/login")
+    ) {
+      navigate(user ? "/admin/dashboard" : "/admin/login");
+    }
+  }, [loading, connectionError, currentPath, user]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950">
@@ -88,32 +104,26 @@ export default function App() {
   }
 
   if (currentPath === "/admin/dashboard" || currentPath.startsWith("/admin/dashboard")) {
-    if (!user) {
-      window.location.href = "/admin/login";
-      return null;
-    }
+    if (!user) return null;
     return <AdminDashboard />;
   }
 
   if (currentPath === "/admin/setup" || currentPath.startsWith("/admin/setup")) {
-    if (!user) {
-      window.location.href = "/admin/login";
-      return null;
-    }
+    if (!user) return null;
     return (
       <div className="min-h-screen bg-slate-950 py-12 px-4">
         <SetupWizard onSiteCreated={() => {
-          window.location.href = "/admin/dashboard";
+          navigate("/admin/dashboard");
         }} />
       </div>
     );
   }
 
-  if (user) {
-    window.location.href = "/admin/dashboard";
-  } else {
-    window.location.href = "/admin/login";
-  }
-
-  return null;
+  // Unknown route (or post-login landing): the redirect effect above moves
+  // to the right page; render a lightweight placeholder meanwhile.
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-slate-950">
+      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500" role="status" aria-label="Loading" />
+    </div>
+  );
 }

@@ -13,9 +13,12 @@ export function requireSupabaseConfig() {
   const url = requireEnv("VITE_SUPABASE_URL");
   const anonKey = requireEnv("VITE_SUPABASE_ANON_KEY");
 
-  if (!/^https:\/\//i.test(url) || !url.includes(".supabase.co")) {
+  const isHttps = /^https:\/\//i.test(url);
+  const isLocalhost = /^http:\/\/localhost(:\d+)?/i.test(url) || /^http:\/\/127\.0\.0\.1(:\d+)?/i.test(url);
+
+  if ((!isHttps && !isLocalhost) || /\s/.test(url)) {
     throw new Error(
-      `Supabase configuration error: VITE_SUPABASE_URL must be a real project URL like https://xxxx.supabase.co. Got: ${url}`,
+      `Supabase configuration error: VITE_SUPABASE_URL must be an https:// URL (http:// allowed only for localhost). Got: ${url}`,
     );
   }
 

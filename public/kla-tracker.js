@@ -243,16 +243,25 @@
     },
 
     sendEvent(event) {
+      const body = JSON.stringify(event);
+      // sendBeacon with a JSON Blob so the edge function parses req.json()
+      // reliably; it returns false (not throw) when the payload is dropped.
+      let queued = false;
       try {
-        navigator.sendBeacon(
-          this.config.apiUrl,
-          JSON.stringify(event)
-        );
+        if (typeof navigator.sendBeacon === "function") {
+          queued = navigator.sendBeacon(
+            this.config.apiUrl,
+            new Blob([body], { type: "application/json" })
+          );
+        }
       } catch {
+        queued = false;
+      }
+      if (!queued) {
         fetch(this.config.apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(event),
+          body,
           keepalive: true,
         }).catch(() => {});
       }

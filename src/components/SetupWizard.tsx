@@ -1,8 +1,23 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { supabase, supabaseUrl, supabaseAnonKey } from "../lib/analytics";
+import { navigate } from "../lib/router";
 
 interface SetupProps {
   onSiteCreated?: (siteId: string) => void;
+}
+
+function cleanError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.replace(/^Error:\s*/, "");
+}
+
+function normalizeDomain(input: string): string | null {
+  const trimmed = input.trim().toLowerCase();
+  const host = trimmed.replace(/^https?:\/\//, "").split("/")[0];
+  if (!host || host.length > 253 || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(host)) {
+    return null;
+  }
+  return host;
 }
 
 export default function SetupWizard({ onSiteCreated }: SetupProps) {
@@ -13,6 +28,7 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [createdSite, setCreatedSite] = useState<{ id: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
 
   const handleCreateSite = async () => {
@@ -20,6 +36,15 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
     setLoading(true);
 
     try {
+      const domain = normalizeDomain(siteDomain);
+      if (!siteName.trim()) {
+        setError("Please enter a website name.");
+        return;
+      }
+      if (!domain) {
+        setError("Please enter a valid domain, e.g. example.com");
+        return;
+      }
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
@@ -38,8 +63,8 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
           },
 
           body: JSON.stringify({
-            name: siteName,
-            domain: siteDomain,
+            name: siteName.trim(),
+            domain,
           }),
         }
       );
@@ -58,9 +83,19 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
         onSiteCreated(site.id);
       }
     } catch (err) {
-      setError(String(err));
+      setError(cleanError(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Copy failed — please select the code manually.");
     }
   };
 
@@ -130,11 +165,12 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
   }
 
   if (step === 2 && createdSite) {
+    const trackerUrl = `${window.location.origin}/kla-tracker.js`;
     const trackingCode = `<script>
   window.KLV_SITE_ID = '${createdSite.id}';
   window.KLV_API_URL = '${supabaseUrl}/functions/v1/analytics-track';
 </script>
-<script src="https://your-domain.com/kla-tracker.js"><\/script>`;
+<script src="${trackerUrl}"><\/script>`;
 
 
 
@@ -162,13 +198,10 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
                 <code className="text-slate-300 text-sm">{trackingCode}</code>
               </pre>
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(trackingCode);
-                  alert("Copied to clipboard!");
-                }}
-                className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded transition"
+                onClick={() => handleCopy(trackingCode)}
+                className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded-lg transition border border-slate-700"
               >
-                Copy Code
+                {copied ? "✓ Copied!" : "Copy Code"}
               </button>
             </div>
 
@@ -196,7 +229,7 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
                 Go to your dashboard to start viewing real-time analytics.
               </p>
               <button
-                onClick={() => window.location.href = "/admin/dashboard"}
+                onClick={() => navigate("/admin/dashboard")}
                 className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg transition"
               >
                 Go to Dashboard

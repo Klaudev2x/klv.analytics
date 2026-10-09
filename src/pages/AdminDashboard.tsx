@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/analytics";
+import { navigate } from "../lib/router";
 import type { User } from "@supabase/supabase-js";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
 import SalesTab from "../components/SalesTab";
@@ -20,11 +21,10 @@ interface Subscription {
   tier: string;
 }
 
-type Tab = "overview" | "traffic" | "sales" | "audience" | "api" | "conversions" | "seo" | "insights" | "reports";
+type Tab = "overview" | "sales" | "audience" | "api" | "conversions" | "seo" | "insights" | "reports";
 
 const tabs: { id: Tab; label: string; minTier: string }[] = [
   { id: "overview", label: "Overview", minTier: "free" },
-  { id: "traffic", label: "Traffic", minTier: "free" },
   { id: "sales", label: "Sales", minTier: "pro" },
   { id: "audience", label: "Audience", minTier: "pro" },
   { id: "api", label: "API", minTier: "pro" },
@@ -44,8 +44,27 @@ const TIER_LIMITS: Record<string, number> = {
   free: 1,
   pro: 5,
   business: 25,
-  agency: Infinity,
+  agency: 1000,
 };
+
+function formatLimit(limit: number): string {
+  return limit >= 1000 ? "unlimited" : String(limit);
+}
+
+function UpgradeBanner() {
+  return (
+    <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-xl p-8 text-center">
+      <h3 className="text-white font-semibold mb-2">Upgrade to unlock this feature</h3>
+      <p className="text-slate-400 text-sm mb-5">This tab requires the Pro or Business plan.</p>
+      <button
+        onClick={() => navigate("/pricing")}
+        className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg transition"
+      >
+        View Pricing
+      </button>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -55,6 +74,7 @@ export default function AdminDashboard() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const initAuth = async () => {
@@ -63,10 +83,10 @@ export default function AdminDashboard() {
         setUser(user);
 
         if (user) {
-          loadSubscription();
+          loadSubscription(user.id);
           loadSites();
         } else {
-          window.location.href = "/admin/login";
+          navigate("/admin/login");
         }
       } catch {
         setError("Cannot connect to the server. Please check your connection and refresh.");
@@ -77,24 +97,22 @@ export default function AdminDashboard() {
     initAuth();
   }, []);
 
-  const loadSubscription = async () => {
+  const loadSubscription = async (userId: string) => {
     try {
       const { data } = await supabase
         .from("subscriptions")
         .select("tier")
+        .eq("user_id", userId)
         .maybeSingle();
       setSubscription(data as Subscription | null);
 
       // Auto-create free tier if no subscription exists
       if (!data) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from("subscriptions").insert({
-            user_id: user.id,
-            tier: "free",
-          });
-          setSubscription({ tier: "free" });
-        }
+        await supabase.from("subscriptions").insert({
+          user_id: userId,
+          tier: "free",
+        });
+        setSubscription({ tier: "free" });
       }
     } catch {
       setSubscription({ tier: "free" });
@@ -139,23 +157,10 @@ export default function AdminDashboard() {
     <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-xs rounded-full font-medium uppercase">{userTier}</span>
   ) : null;
 
-  const UpgradeBanner = () => (
-    <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg p-6 text-center">
-      <h3 className="text-white font-semibold mb-2">Upgrade to unlock this feature</h3>
-      <p className="text-slate-400 text-sm mb-4">This tab requires the Pro or Business plan.</p>
-      <button
-        onClick={() => { window.location.href = "/pricing"; }}
-        className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg transition"
-      >
-        View Pricing
-      </button>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-slate-950">
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center gap-x-4 gap-y-3 justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
               <span className="text-white font-bold">K</span>
@@ -168,12 +173,13 @@ export default function AdminDashboard() {
               <p className="text-xs text-slate-400">by Claude Atsika</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {sites.length > 0 && (
               <select
                 value={selectedSite || ""}
                 onChange={(e) => setSelectedSite(e.target.value)}
-                className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500 transition"
+                aria-label="Select site"
+                className="max-w-[180px] sm:max-w-none px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500 transition"
               >
                 {sites.map((site) => (
                   <option key={site.id} value={site.id}>
@@ -185,17 +191,17 @@ export default function AdminDashboard() {
             <button
               onClick={() => {
                 if (!canCreateSite) {
-                  alert(`Your ${userTier} plan allows ${siteLimit === Infinity ? "unlimited" : siteLimit} site(s). Upgrade to add more.`);
+                  setNotice(`Your ${userTier} plan allows ${formatLimit(siteLimit)} site(s). Upgrade to add more.`);
                   return;
                 }
-                window.location.href = "/admin/setup";
+                navigate("/admin/setup");
               }}
               className="px-4 py-2 text-sm font-medium bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition"
             >
               + New Site
             </button>
             <button
-              onClick={() => { window.location.href = "/pricing"; }}
+              onClick={() => navigate("/pricing")}
               className="px-4 py-2 text-sm font-medium text-cyan-400 hover:text-cyan-300 transition"
             >
               Pricing
@@ -203,7 +209,7 @@ export default function AdminDashboard() {
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
-                window.location.href = "/admin/login";
+                navigate("/admin/login");
               }}
               className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition"
             >
@@ -213,10 +219,16 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {error && (
           <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
             Error: {error}
+          </div>
+        )}
+        {notice && (
+          <div className="mb-6 p-4 bg-amber-500/15 border border-amber-500/40 rounded-lg text-amber-200 text-sm flex items-start justify-between gap-4">
+            <span>{notice}</span>
+            <button onClick={() => setNotice("")} aria-label="Dismiss" className="text-amber-300/70 hover:text-amber-200 transition font-bold">✕</button>
           </div>
         )}
 
@@ -253,7 +265,6 @@ export default function AdminDashboard() {
 
             {/* Tab content */}
             {activeTab === "overview" && <AnalyticsDashboard siteId={selectedSite} />}
-            {activeTab === "traffic" && <AnalyticsDashboard siteId={selectedSite} />}
             {activeTab === "sales" && (hasAccess(userTier, "pro") ? <SalesTab siteId={selectedSite} /> : <UpgradeBanner />)}
             {activeTab === "audience" && (hasAccess(userTier, "pro") ? <AudienceTab siteId={selectedSite} /> : <UpgradeBanner />)}
             {activeTab === "api" && (hasAccess(userTier, "pro") ? <ApiTab siteId={selectedSite} /> : <UpgradeBanner />)}
@@ -266,7 +277,7 @@ export default function AdminDashboard() {
           <div className="text-center py-12">
             <p className="text-slate-400 mb-4">No sites configured yet.</p>
             <button
-              onClick={() => { window.location.href = "/admin/setup"; }}
+              onClick={() => navigate("/admin/setup")}
               className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg transition"
             >
               Create Your First Site
