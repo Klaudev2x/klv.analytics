@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase, checkConnection } from "./lib/analytics";
+import { supabase, checkConnection, configError } from "./lib/analytics";
 import { navigate } from "./lib/router";
 import type { User } from "@supabase/supabase-js";
 import AdminLogin from "./pages/AdminLogin";
@@ -49,7 +49,7 @@ export default function App() {
 
   // SPA redirects as an effect — never navigate during render.
   useEffect(() => {
-    if (loading || connectionError) return;
+    if (configError || loading || connectionError) return;
     if (currentPath === "/admin/dashboard" || currentPath.startsWith("/admin/dashboard")) {
       if (!user) navigate("/admin/login");
     } else if (currentPath === "/admin/setup" || currentPath.startsWith("/admin/setup")) {
@@ -61,6 +61,37 @@ export default function App() {
       navigate(user ? "/admin/dashboard" : "/admin/login");
     }
   }, [loading, connectionError, currentPath, user]);
+
+  if (configError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-950 px-4">
+        <div className="max-w-lg w-full text-center">
+          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Backend not configured</h2>
+          <p className="text-slate-400 mb-6 text-sm leading-relaxed">{configError}</p>
+          <div className="text-left bg-slate-900 border border-slate-800 rounded-xl p-5 text-sm space-y-2.5">
+            <p className="text-slate-300 font-semibold">To fix on Vercel:</p>
+            <ol className="text-slate-400 space-y-2 list-decimal list-inside">
+              <li>Open the project → Settings → Environment Variables</li>
+              <li>
+                Add <code className="text-cyan-300 font-mono">VITE_SUPABASE_URL</code> (= your{" "}
+                <code className="text-cyan-300 font-mono">https://xyz.supabase.co</code>)
+              </li>
+              <li>
+                Add <code className="text-cyan-300 font-mono">VITE_SUPABASE_ANON_KEY</code> (= the{" "}
+                <span className="text-slate-200">anon public</span> key from Supabase → Project Settings → API)
+              </li>
+              <li>Redeploy (Deployments → ⋯ → Redeploy)</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

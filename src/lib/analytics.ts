@@ -1,8 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { requireSupabaseConfig } from "./supabaseEnv";
+import { getSupabaseConfig } from "./supabaseEnv";
 
-const { url: supabaseUrl, anonKey: supabaseAnonKey } = requireSupabaseConfig();
+const result = getSupabaseConfig();
+
+/** Null when env config is valid; otherwise a human-readable setup error. */
+export const configError: string | null = result.error;
+
+// Never throw at import time (that whitescreens the app). When env vars are
+// missing we stand up a placeholder client and let the App shell render a
+// setup screen instead; no query is ever issued through it.
+const { url: supabaseUrl, anonKey: supabaseAnonKey } = result.config ?? {
+  url: "https://placeholder.supabase.co",
+  anonKey: "placeholder",
+};
 
 export { supabaseUrl, supabaseAnonKey };
 
