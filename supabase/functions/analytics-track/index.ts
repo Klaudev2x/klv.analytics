@@ -139,7 +139,6 @@ Deno.serve(async (req: Request) => {
           browser: sanitize(payload.browser),
           os: sanitize(payload.os),
           referrer: sanitize(payload.referrer),
-          updated_at: new Date().toISOString(),
         },
         { onConflict: "site_id,session_id" }
       );

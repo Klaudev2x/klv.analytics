@@ -5,8 +5,9 @@
 (function () {
   const KLVTracker = {
     config: {
-      siteId: window.KLV_SITE_ID || window.KLA_SITE_ID || '',
-      apiUrl: window.KLV_API_URL || window.KLA_API_URL || '',
+      siteId: window.KLV_SITE_ID || '',
+      apiUrl: window.KLV_API_URL || '',
+
       batchSize: 5,
       batchTimeout: 5000,
     },
@@ -279,12 +280,35 @@
     },
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => KLVTracker.init());
-  } else {
+  // Strong init guard: only initialize if KLV_* globals are present.
+  // Prevents any legacy KLA_* / cached globals from causing mismatched behavior.
+  const hasKlvConfig = !!(window.KLV_SITE_ID && window.KLV_API_URL);
+  const hasKlaConfig = !!(window.KLA_SITE_ID || window.KLA_API_URL);
+
+  if (hasKlaConfig && !hasKlvConfig) {
+    console.warn(
+      "[KLV] Detected legacy window.KLA_* configuration but missing window.KLV_* configuration. Tracker will not initialize."
+    );
+  }
+
+  const start = () => {
+    if (!hasKlvConfig) return;
     KLVTracker.init();
+    window.KLVTrackerReady = true;
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
   }
 
   window.KLVTracker = KLVTracker;
-  window.KLATracker = KLVTracker; // backwards compat
+  // Backwards-compat alias
+  window.KLATracker = KLVTracker;
+
+  // Preferred name (no behavioral change)
+  window.KlavTracker = KLVTracker;
 })();
+
+

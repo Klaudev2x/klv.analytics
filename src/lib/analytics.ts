@@ -1,36 +1,35 @@
 import { createClient } from "@supabase/supabase-js";
 
-const FALLBACK_URL = "https://fuowphuqdnipprwjpgcj.supabase.co";
-const FALLBACK_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1b3dwaHVxZG5pcHByd2pwZ2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1Mzk2NjAsImV4cCI6MjA5NjExNTY2MH0.5qWVNwXR4E0RIiQ_ueMxwM2teVzLnA1136xE4aIx-Ww";
+import { requireSupabaseConfig } from "./supabaseEnv";
 
-function resolveUrl(envVal: string | undefined): string {
-  if (!envVal || envVal.includes("your-project-id") || envVal.includes("placeholder")) {
-    return FALLBACK_URL;
-  }
-  return envVal;
-}
+const { url: supabaseUrl, anonKey: supabaseAnonKey } = requireSupabaseConfig();
 
-function resolveKey(envVal: string | undefined): string {
-  if (!envVal || envVal.includes("your-") || envVal.includes("placeholder") || envVal.length < 20) {
-    return FALLBACK_KEY;
-  }
-  return envVal;
-}
+export { supabaseUrl, supabaseAnonKey };
 
-const supabaseUrl = resolveUrl(import.meta.env.VITE_SUPABASE_URL);
-const supabaseKey = resolveKey(import.meta.env.VITE_SUPABASE_ANON_KEY);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
-
-export async function checkConnection(): Promise<{ ok: boolean; error?: string }> {
+export async function checkConnection(): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
   try {
     const { error } = await supabase.auth.getSession();
-    if (error && (error.message.includes("Failed to fetch") || error.message.includes("ERR_NAME"))) {
-      return { ok: false, error: `Cannot reach your Supabase project at ${supabaseUrl}. The project may be paused or the URL is incorrect.` };
+    if (
+      error &&
+      (error.message.includes("Failed to fetch") ||
+        error.message.includes("ERR_NAME"))
+    ) {
+      return {
+        ok: false,
+        error: `Cannot reach your Supabase project at ${supabaseUrl}. The project may be paused or the URL is incorrect.`,
+      };
     }
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: `Connection failed: ${err instanceof Error ? err.message : "Unknown error"}` };
+    return {
+      ok: false,
+      error: `Connection failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+    };
   }
 }
 
@@ -54,7 +53,7 @@ export async function trackingEndpoint(payload: unknown) {
 export async function adminApiCall(
   endpoint: string,
   method: string = "GET",
-  body?: unknown
+  body?: unknown,
 ) {
   const functionUrl = `${supabaseUrl}/functions/v1/analytics-api/${endpoint}`;
 
@@ -63,7 +62,7 @@ export async function adminApiCall(
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ""}`,
-      apikey: supabaseKey,
+      apikey: supabaseAnonKey,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -77,7 +76,7 @@ export async function adminApiCall(
 
 export function subscribeToEvents(
   siteId: string,
-  callback: (event: unknown) => void
+  callback: (event: unknown) => void,
 ) {
   const subscription = supabase
     .channel(`analytics:${siteId}`)
@@ -89,9 +88,9 @@ export function subscribeToEvents(
         table: "analytics_events",
         filter: `site_id=eq.${siteId}`,
       },
-      (payload) => {
+      (payload: { new: unknown }) => {
         callback(payload.new);
-      }
+      },
     )
     .subscribe();
 

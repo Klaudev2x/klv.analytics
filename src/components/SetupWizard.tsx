@@ -1,17 +1,19 @@
 import React, { useState } from "react";
-import { supabase } from "../lib/analytics";
+import { supabase, supabaseUrl, supabaseAnonKey } from "../lib/analytics";
 
 interface SetupProps {
   onSiteCreated?: (siteId: string) => void;
 }
 
 export default function SetupWizard({ onSiteCreated }: SetupProps) {
+
   const [step, setStep] = useState(1);
   const [siteName, setSiteName] = useState("");
   const [siteDomain, setSiteDomain] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [createdSite, setCreatedSite] = useState(null);
+  const [createdSite, setCreatedSite] = useState<{ id: string } | null>(null);
+
 
   const handleCreateSite = async () => {
     setError("");
@@ -26,14 +28,15 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-api/sites`,
+        `${supabaseUrl}/functions/v1/analytics-api/sites`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            apikey: supabaseAnonKey,
           },
+
           body: JSON.stringify({
             name: siteName,
             domain: siteDomain,
@@ -129,9 +132,12 @@ export default function SetupWizard({ onSiteCreated }: SetupProps) {
   if (step === 2 && createdSite) {
     const trackingCode = `<script>
   window.KLV_SITE_ID = '${createdSite.id}';
-  window.KLV_API_URL = '${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-track';
+  window.KLV_API_URL = '${supabaseUrl}/functions/v1/analytics-track';
 </script>
 <script src="https://your-domain.com/kla-tracker.js"><\/script>`;
+
+
+
 
     return (
       <div className="max-w-3xl mx-auto">
